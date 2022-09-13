@@ -1,22 +1,31 @@
 package main
 
 import (
-        "bufio"
         "fmt"
         "net"
+        "io"
 )
 
 func connHandler(conn net.Conn) {
+    defer conn.Close()
+
+    buf := make([]byte, 0, 4096)
+    tmp := make([]byte, 256)
+
     for {
-            netData, err := bufio.NewReader(conn).ReadString('\n')
+            data, err := conn.Read(tmp)
             if err != nil {
-                    fmt.Println(err)
-                    return
+                if err != io.EOF {
+                    fmt.Println("read error:", err)
+                }
+                break;
             }
-            fmt.Printf("%s -> %s", conn.RemoteAddr(), string(netData))
-            conn.Write([]byte(netData))
-            fmt.Printf("%s <- %s", conn.RemoteAddr(), string(netData))
+            buf = append(buf, tmp[:data]...)
     }
+
+    fmt.Printf("%s -> %s", conn.RemoteAddr(), string(buf))
+    fmt.Printf("%s <- %s", conn.RemoteAddr(), string(buf))
+    conn.Write([]byte(buf))
 }
 
 func main() {
