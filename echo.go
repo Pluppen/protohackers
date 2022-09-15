@@ -72,14 +72,19 @@ func prime(conn net.Conn) {
                 fmt.Println(err)
             }
             fmt.Printf("%s <- %s", conn.RemoteAddr(), string(data))
-            fmt.Printf("%s -> %s", conn.RemoteAddr(), string(data))
 
-            if(jsonReq.Method != "" && jsonReq.Number != 0) {
+            if(jsonReq.Method == "isPrime") {
                 isPrime := IsPrime(jsonReq.Number)
                 jsonRes.Method = jsonReq.Method
                 jsonRes.Prime = isPrime
+                json.NewEncoder(conn).Encode(jsonRes)
+                jsonString, _ := json.Marshal(jsonRes)
+                fmt.Printf("%s -> %s", conn.RemoteAddr(), string(jsonString))
+                continue
             }
 
+            jsonString, err := json.Marshal(jsonRes)
+            fmt.Printf("%s -> %s", conn.RemoteAddr(), string(jsonString))
             json.NewEncoder(conn).Encode(jsonRes)
     }
 }
