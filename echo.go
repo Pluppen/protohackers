@@ -2,6 +2,7 @@ package main
 
 import (
     "math"
+    "math/big"
         "bufio"
         "fmt"
         "net"
@@ -33,28 +34,23 @@ func echo(conn net.Conn) {
 
 type JSONRequest struct {
     Method string `json:"method"`
-    Number int `json:"number"`
+    Number *float64 `json:"number"`
 }
 
-type JSONResponse struct {
-    Method string `json:"method"`
-    Prime bool `json:"prime"`
-}
-
-func IsPrime(value int) bool {
-    for i := 2; i <= int(math.Floor(float64(value)/2)); i++ {
-        if value%i == 0 {
-            return false
-        }
-    }
-    return value > 1
+func IsPrime(value float64) bool {
+	prime := false
+	if math.Floor(value) == value {
+		prime = big.NewInt(int64(value)).ProbablyPrime(0)
+	}
+	return prime
 }
 
 func prime(conn net.Conn) {
     defer conn.Close()
 
+    reader := bufio.NewReader(conn)
     for {
-            data, err := bufio.NewReader(conn).ReadBytes('\n')
+            data, err := reader.ReadString('\n')
             if err != nil {
                 if err != io.EOF {
                     fmt.Println("read error:", err)
@@ -62,30 +58,24 @@ func prime(conn net.Conn) {
                 break;
             }
 
-            var jsonRes JSONResponse
-            jsonRes.Method = "malformed"
-            jsonRes.Prime = false
-
             var jsonReq JSONRequest
-            err = json.Unmarshal(data, &jsonReq)
-            if err != nil {
-                fmt.Println(err)
-            }
-            fmt.Printf("%s <- %s", conn.RemoteAddr(), string(data))
-
-            if(jsonReq.Method == "isPrime") {
-                isPrime := IsPrime(jsonReq.Number)
-                jsonRes.Method = jsonReq.Method
-                jsonRes.Prime = isPrime
-                json.NewEncoder(conn).Encode(jsonRes)
-                jsonString, _ := json.Marshal(jsonRes)
-                fmt.Printf("%s -> %s", conn.RemoteAddr(), string(jsonString))
+            err = json.Unmarshal([]byte(data), &jsonReq)
+            if(err != nil || jsonReq.Method != "isPrime" || jsonReq.Number == nil) {
+		conn.Write([]byte("{p\n"))
                 continue
             }
 
-            jsonString, err := json.Marshal(jsonRes)
-            fmt.Printf("%s -> %s", conn.RemoteAddr(), string(jsonString))
-            json.NewEncoder(conn).Encode(jsonRes)
+	    isPrime := IsPrime(*jsonReq.Number)
+	    jsonRes := struct {
+		    Method string `json:"method"`
+		    Prime bool `json:"prime"`
+	    }{
+		Method: "isPrime",
+		Prime: isPrime,
+	    }
+
+	    resBytes, _ := json.Marshal(jsonRes)
+	    conn.Write(append(resBytes, '\n'))
     }
 }
 
@@ -95,7 +85,6 @@ func connHandler(conn net.Conn) {
 }
 
 func main() {
-
         PORT := ":10000"
         l, err := net.Listen("tcp", PORT)
         if err != nil {
