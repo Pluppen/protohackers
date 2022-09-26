@@ -3,34 +3,12 @@ package main
 import (
     "math"
     "math/big"
-        "bufio"
-        "fmt"
-        "net"
-        "io"
-        "encoding/json"
+    "bufio"
+    "fmt"
+    "net"
+    "io"
+    "encoding/json"
 )
-
-func echo(conn net.Conn) {
-    defer conn.Close()
-
-    buf := make([]byte, 0, 4096)
-    tmp := make([]byte, 256)
-
-    for {
-            data, err := conn.Read(tmp)
-            if err != nil {
-                if err != io.EOF {
-                    fmt.Println("read error:", err)
-                }
-                break;
-            }
-            buf = append(buf, tmp[:data]...)
-    }
-    fmt.Printf("%s -> %s", conn.RemoteAddr(), string(buf))
-
-    fmt.Printf("%s <- %s", conn.RemoteAddr(), string(buf))
-    conn.Write([]byte(buf))
-}
 
 type JSONRequest struct {
     Method string `json:"method"`
@@ -79,10 +57,6 @@ func prime(conn net.Conn) {
     }
 }
 
-func connHandler(conn net.Conn) {
-    defer conn.Close()
-    prime(conn)
-}
 
 func main() {
         PORT := ":10000"
@@ -100,7 +74,8 @@ func main() {
                     continue
             }
 
-            go connHandler(conn)
+            defer conn.Close()
+            go prime(conn)
         }
 }
     
