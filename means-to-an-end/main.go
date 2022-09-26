@@ -1,7 +1,6 @@
 package main
 
 import (
-    "math"
     "bytes"
     "bufio"
     "fmt"
@@ -23,35 +22,25 @@ type PriceRecord struct {
 func readMessage(reader *bufio.Reader) (Message, error) {
     res := Message{}
 
-    msgType, err := reader.ReadByte()
-    if(err != nil) {
-        return res, err
-    }
+    msgType, _ := reader.ReadByte()
 
-    var slice = []byte{}
+    slice := []byte{}
     for i:=0; i < 4; i++ {
-        r, err := reader.ReadByte()
-        if(err != nil) {
-            return res, err
-        }
-
+        r, _ := reader.ReadByte()
         slice = append(slice, r)
     }
     var num1 int32
     buf := bytes.NewBuffer(slice)
     binary.Read(buf, binary.BigEndian, &num1)
 
-    slice = []byte{}
+    slice2 := []byte{}
     for i:=0; i < 4; i++ {
-        r, err := reader.ReadByte()
-        if(err != nil) {
-            return res, err
-        }
-        slice = append(slice, r)
+        r, _ := reader.ReadByte()
+        slice2 = append(slice2, r)
     }
     var num2 int32
-    buf = bytes.NewBuffer(slice)
-    binary.Read(buf, binary.BigEndian, &num2)
+    buf2 := bytes.NewBuffer(slice2)
+    binary.Read(buf2, binary.BigEndian, &num2)
 
 
     res = Message{
@@ -66,43 +55,55 @@ func handler(conn net.Conn) {
     defer conn.Close()
 
     var priceData []PriceRecord
+    var timestamps = make(map[int32]bool)
 
     reader := bufio.NewReader(conn)
     for {
         msg, err := readMessage(reader)
         if err != nil {
-            fmt.Println("read error:", err)
-            break;
+	    continue
         }
 
         if(msg.Type == 'I') {
             timestamp := msg.Number1 // Timestamp in seconds since 1970..
             price := msg.Number2 // Price in pennies
+
+	    _, ok := timestamps[timestamp]
+	    if ok {
+		    conn.Write([]byte("{p\n"))
+		    continue
+	    } else {
+		    timestamps[timestamp] = true
+	    }
+	    
             record := PriceRecord{
                 Timestamp: timestamp,
                 Price: price,
             }
-            fmt.Println("Inserted ", price, " at timestamp ", timestamp)
             priceData = append(priceData, record)
         } else if(msg.Type == 'Q') {
             mintime := msg.Number1 // Timestamp in seconds since 1970..
             maxtime := msg.Number2 
 
-            var sum int32 = 0
+            var sum int64 = 0
             var items int32 = 0
             for _, r := range priceData {
                 if(r.Timestamp >= mintime && r.Timestamp <= maxtime) {
-                    sum += r.Price
+                    sum += int64(r.Price)
                     items++
                 }
             }
-            fmt.Println("Query res:", sum/items)
+
+	    var average int32 = 0
+	    if (items > 0) {
+		    average = int32(sum / int64(items))
+		    //fmt.Println("Query res:", average)
+	    }
 
             result := bytes.NewBuffer([]byte{})
-            binary.Write(result, binary.BigEndian, math.Round(float64(sum / items)))
+            binary.Write(result, binary.BigEndian, average)
             conn.Write(result.Bytes())
         } else {
-            fmt.Println("Something went wrong: ",msg)
             conn.Write([]byte("{p\n"))
         }
     }
