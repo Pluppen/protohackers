@@ -36,7 +36,7 @@ func handleSession(username string, reader *bufio.Reader, sessions *map[string]S
             }
             break
         }
-        sendMessage(sessions, username, "[" + username + "] " + data + "\n")
+        sendMessage(sessions, username, "[" + username + "] " + data)
     }
 
     sendMessage(sessions, username, "* " + username + " has left the room\n")
