@@ -18,6 +18,7 @@ type Session struct {
 }
 
 func sendMessage(sessions *map[string]Session, username string, message string) {
+    fmt.Println("--> " + message)
     for _, session := range *sessions {
         if(session.Username != username) {
             session.Connection.Write([]byte(message))
@@ -36,7 +37,7 @@ func handleSession(username string, reader *bufio.Reader, sessions *map[string]S
             }
             break
         }
-        sendMessage(sessions, username, "[" + username + "] " + data + "\n")
+        sendMessage(sessions, username, "[" + username + "] " + data)
     }
 
     sendMessage(sessions, username, "* " + username + " has left the room\n")
@@ -61,7 +62,8 @@ func chat(sessions *map[string]Session, conn net.Conn, mutex *sync.Mutex) {
 
     var isStringAlphabetic = regexp.MustCompile(`^[a-zA-Z0-9]*$`).MatchString  
     if(!isStringAlphabetic(username) || len(username) == 0) {
-        conn.Write([]byte("Your username may only contain alphanumeric characters and must be of minimum length 1.\n"))
+        conn.Write([]byte("* Your username may only contain alphanumeric characters and must be of minimum length 1.\n"))
+	fmt.Println("* Your username may only contain alphanumeric characters and must be of minimum length 1.\n")
         return
     }
 
@@ -69,7 +71,8 @@ func chat(sessions *map[string]Session, conn net.Conn, mutex *sync.Mutex) {
 
     _, ok := (*sessions)[username]
     if(ok) {
-        conn.Write([]byte("The username " + username + " is already taken.\n"))
+	fmt.Println("--> * The username " + username + " is already taken.\n")
+        conn.Write([]byte("* The username " + username + " is already taken.\n"))
         mutex.Unlock()
         return
     }
