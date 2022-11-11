@@ -9,24 +9,25 @@ import (
 var store = make(map[string]string)
 
 func handler(conn net.PacketConn, addr net.Addr, line []byte) {
-    msg := strings.Trim(string(line), "\n")
+    msg := string(line)
 
-    v := strings.SplitN(msg, "=", 2)
-    key := v[0]
-    if(len(v) > 1) { // Insert/Update values
-        value := v[1]
-        if(key != "version") {
-            store[key] = value
-        }
+    if(strings.Contains(msg, "=")) { // Insert/Update values
+	if(msg[0] == '=') {
+		store[""] = string(msg[1:])
+	} else {
+		key_val := strings.SplitN(msg, "=", 2)
+
+		if(key_val[0] != "version") {
+		    store[key_val[0]] = key_val[1]
+		}
+	}
     } else { // Retrieve
-        value, ok := store[key]
+	res := msg + "="
+	res += store[msg]
 
-        if(ok) {
-            fmt.Println("Found value for " + key + " : " + value)
-            _, err := conn.WriteTo([]byte(key + "=" + value), addr)
-            if(err != nil) {
-                fmt.Println(err)
-            }
+        _, err := conn.WriteTo([]byte(res), addr)
+        if(err != nil) {
+	    fmt.Println(err)
         }
     }
 }
@@ -38,8 +39,8 @@ func main() {
         PORT := "10000"
         conn, err := net.ListenPacket("udp", "0.0.0.0:"+PORT)
         if err != nil {
-                fmt.Println(err)
-                return
+		fmt.Println(err)
+		return
         }
 
         defer conn.Close()
