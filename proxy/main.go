@@ -32,6 +32,7 @@ func (proxy *ProxyConnection) receiveFromServer() {
             if(err != io.EOF) {
                 fmt.Printf("%s\n", err)
             }
+            break
         }
         proxy.serverData <- strings.TrimSpace(message)
     }
@@ -46,6 +47,7 @@ func (proxy *ProxyConnection) receiveFromClient() {
             if(err != io.EOF) {
                 fmt.Printf("%s\n", err)
             }
+            break
         }
         proxy.clientData <- strings.TrimSpace(message)
     }
